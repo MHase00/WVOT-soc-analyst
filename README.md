@@ -222,4 +222,3 @@ These are **targets**, not guarantees; results depend on:
   - Adapt detection rules to your own log schemas.  
   - Extend the enrichment pipeline to your SOAR, ticketing system, and notification channels.  
   - Maintain documentation for all tuning and allowlists to remain audit-ready.
-```
