@@ -1,42 +1,49 @@
 // Detect suspicious Registry Run key modifications (Registry Persistence)
 // MITRE ATT&CK: T1547.001 - Boot or Logon Autostart Execution
 // Severity: High
-// False Positive Rate: <0.1% (after tuning)
 // Description: Malware often achieves persistence by modifying Registry Run keys
 //              to execute on system startup. This rule alerts on suspicious modifications.
 
-SecurityEvent
-| where EventID in (12, 13)  // Registry object added or modified
-| where TargetObject contains "\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run"
-  or TargetObject contains "\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce"
-| where InitiatingProcessName !in ("winlogon.exe", "svchost.exe", "explorer.exe", "services.exe")
-| where InitiatingProcessName !contains "C:\\Program Files"
-| where InitiatingProcessName !contains "C:\\ProgramData"
-| where InitiatingProcessName !contains "C:\\Windows\\System32"
-| where InitiatingProcessName !contains "C:\\Windows\\SysWOW64"
-| extend ProcessCreationTime = TimeGenerated
+DeviceRegistryEvents
+| where ActionType in ("RegistryValueSet", "RegistryKeyCreated")   // Registry value added/modified
+| where RegistryKey has_any (
+    @"\Software\Microsoft\Windows\CurrentVersion\Run",
+    @"\Software\Microsoft\Windows\CurrentVersion\RunOnce"
+)
+// Exclude some common Windows processes
+| where InitiatingProcessFileName !in~ ("winlogon.exe", "svchost.exe", "explorer.exe", "services.exe")
+// Exclude processes running from common trusted directories
+| where not(InitiatingProcessFolderPath has_any (
+    @"\Program Files\",
+    @"\Program Files (x86)\",
+    @"\ProgramData\",
+    @"\Windows\System32\",
+    @"\Windows\SysWOW64\"
+))
 | project
-    TimeGenerated,
-    Computer,
-    User = Account,
-    InitiatingProcessName,
+    Timestamp,
+    DeviceName,
+    User = tostring(InitiatingProcessAccountName),
+    InitiatingProcessFileName,
     InitiatingProcessCommandLine,
-    TargetObject,
-    Details,
-    EventID
+    RegistryKey,
+    RegistryValueName,
+    RegistryValueData,
+    ActionType
 | summarize 
     EventCount = count(),
-    FirstEvent = min(TimeGenerated),
-    LastEvent = max(TimeGenerated),
-    Processes = make_set(InitiatingProcessName),
+    FirstEvent = min(Timestamp),
+    LastEvent = max(Timestamp),
+    Processes = make_set(InitiatingProcessFileName),
     CommandLines = make_set(InitiatingProcessCommandLine)
-    by Computer, User
-| where EventCount >= 3  // Alert if 3+ Registry modifications in detection window
+    by DeviceName, User
+// Alert if 3+ suspicious registry modifications in the detection window
+| where EventCount >= 3
 | project
-    Computer,
+    DeviceName,
     User,
     RiskLevel = "High",
-    AlertTitle = strcat("Potential Registry Persistence Detected on ", Computer),
+    AlertTitle = strcat("Potential Registry Persistence Detected on ", DeviceName),
     EventCount,
     FirstEvent,
     LastEvent,
