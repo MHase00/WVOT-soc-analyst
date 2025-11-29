@@ -1,0 +1,29 @@
+# Alert Enrichment Configuration Example
+# Copy to config.yaml and fill in your API keys and SOAR details
+
+abuseipdb:
+  api_key: "YOUR_ABUSEIPDB_API_KEY"
+  max_age_days: 90
+
+virustotal:
+  api_key: "YOUR_VIRUSTOTAL_API_KEY"
+
+sentinel:
+  workspace_id: "YOUR_SENTINEL_WORKSPACE_ID"
+  resource_group: "YOUR_RESOURCE_GROUP"
+  subscription_id: "YOUR_SUBSCRIPTION_ID"
+
+soar:
+  platform: "tines"  # or "n8n"
+  webhook_url: "https://your-soar-webhook-url"
+  high_priority_channel: "high-priority-alerts"
+  medium_priority_channel: "manual-review"
+
+slack:
+  webhook_url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+  enabled: true
+
+risk_thresholds:
+  auto_ticket_tier3: 0.70
+  manual_review: 0.40
+  close_false_positive: 0.00
